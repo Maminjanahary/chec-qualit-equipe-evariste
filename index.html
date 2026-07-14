@@ -31,7 +31,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 10px;
+            gap: 15px;
+            flex-wrap: wrap;
         }
         .action-container {
             display: flex;
@@ -211,9 +212,16 @@
     <h3>VERRIF ACTE ET TAUX QUALITE EQUIPE EVARISTE</h3><h6>A1 : Nb erreur ------ B1 : chemin image </h6>
     
     <div class="file-input">
-        <div>
-            <label for="excel-file" style="font-size: 14px; font-weight: bold;">Excel à verrifer (soisisser le dernier export) (.xlsx na .xls):</label>
-            <input type="file" id="excel-file" accept=".xlsx, .xls">
+        <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+            <div>
+                <label for="excel-file" style="font-size: 14px; font-weight: bold;">Excel à verrifer (.xlsx na .xls):</label>
+                <input type="file" id="excel-file" accept=".xlsx, .xls">
+            </div>
+            <!-- TEXT BOX VAOVAO AMETRAHANA NY CHEMIN IMAGE -->
+            <div>
+                <label for="manual-path" style="font-size: 14px; font-weight: bold; color: #007bff;">Chemin Image (Dossier misy sary):</label>
+                <input type="text" id="manual-path" placeholder="Ohatra: D:/Sary/ na sary/" style="padding: 6px; width: 280px; border: 2px solid #007bff; border-radius: 4px; font-size: 13px;">
+            </div>
         </div>
         <div class="action-container">
             <button class="param-btn" id="param-toggle-btn" style="display:none;" onclick="openModal()">⚙️ Paramètre</button>
@@ -272,6 +280,22 @@
     let currentScale = 1;
     const imgElement = document.getElementById('acte-image');
     const imgContainer = document.getElementById('img-container');
+
+    // Mamerina ny Chemin Image efa voatahiry tao anaty browser (raha nisy)
+    window.addEventListener('DOMContentLoaded', function() {
+        const savedPath = localStorage.getItem('global_manual_image_path');
+        if (savedPath) {
+            document.getElementById('manual-path').value = savedPath;
+        }
+    });
+
+    // Isaky ny ovaina ny Chemin Image ao anaty Text Box dia tehirizina ary havaozina ny sary
+    document.getElementById('manual-path').addEventListener('input', function() {
+        localStorage.setItem('global_manual_image_path', this.value);
+        if (excelData.length > 0) {
+            loadImageForCurrentRow();
+        }
+    });
 
     // Mampiditra Raccourcis Clavier (Alt + N sy Alt + P)
     window.addEventListener('keydown', function(e) {
@@ -348,6 +372,48 @@
         reader.readAsArrayBuffer(file);
     });
 
+    // Fitaovana manokana mikarakara sy mampiseho ny sary
+    function loadImageForCurrentRow() {
+        const row = excelData[currentIndex];
+        const imgField = headers.find(h => h.toLowerCase() === "chemin image") || "chemin image";
+        
+        // 1. Alaina ny Chemin Image (na avy amin'ny Text Box vaovao, na avy amin'ny Excel raha tsy nisy soratra teo)
+        let basePath = document.getElementById('manual-path').value.trim();
+        if (!basePath && row[imgField]) {
+            basePath = row[imgField].toString().trim();
+        }
+
+        // 2. Karohina raha misy sary (.jpg, .jpeg, .png) voasoratra amin'ilay andalana (ligne) andehanana
+        let imageName = "";
+        for (let key in row) {
+            if (row[key]) {
+                const valStr = row[key].toString().trim();
+                if (valStr.toLowerCase().endsWith('.jpg') || valStr.toLowerCase().endsWith('.png') || valStr.toLowerCase().endsWith('.jpeg')) {
+                    imageName = valStr;
+                    break;
+                }
+            }
+        }
+
+        // 3. Atambatra ny Chemin sy ny anaran'ny Sary
+        if (basePath) {
+            // Ampiana "/" eo amin'ny farany raha mbola tsy misy
+            if (!basePath.endsWith('/') && !basePath.endsWith('\\')) {
+                basePath += '/';
+            }
+
+            if (imageName !== "") {
+                imgElement.src = basePath + imageName;
+            } else {
+                // Raha tsy misy .jpg hita, dia ampiasaina fotsiny izay voasoratra teo
+                imgElement.src = basePath;
+            }
+        } else {
+            imgElement.src = "";
+        }
+        resetZoom();
+    }
+
     function showRow(index) {
         if(index >= excelData.length) index = excelData.length - 1;
         if(index < 0) index = 0;
@@ -365,38 +431,8 @@
         document.getElementById('prev-btn').disabled = currentIndex === 0;
         document.getElementById('next-btn').disabled = currentIndex === excelData.length - 1;
 
-     // 1. Karohina aloha ny columna "Chemin image" (A1 na B1 na izay lohateniny)
-        const imgField = headers.find(h => h.toLowerCase() === "chemin image") || "chemin image";
-        
-        // 2. Karohina izay columna misy soratra ".jpg" na ".png" any amin'ilay andalana (ligne) andehanana
-        let imageName = "";
-        for (let key in row) {
-            if (row[key] && (row[key].toString().toLowerCase().endsWith('.jpg') || row[key].toString().toLowerCase().endsWith('.png') || row[key].toString().toLowerCase().endsWith('.jpeg'))) {
-                imageName = row[key].toString().trim();
-                break; // Raha hita ilay anaran-tsary dia mijanona
-            }
-        }
-
-        // 3. Fanakambanana ny "Chemin image" sy ny "Anaran'ny sary"
-        if (row[imgField]) {
-            let baseChemin = row[imgField].toString().trim();
-            
-            // Raha toa ka tsy miafara amin'ny "/" ilay chemin dia ampiana "/"
-            if (baseChemin && !baseChemin.endsWith('/') && !baseChemin.endsWith('\\')) {
-                baseChemin += '/';
-            }
-
-            // Raha nahita anaran-tsary (.jpg) tamin'ilay ligne
-            if (imageName !== "") {
-                imgElement.src = baseChemin + imageName;
-            } else {
-                // Raha tsy nisy .jpg hita, dia ampiasaina fotsiny ilay chemin feno ao amin'ny b1
-                imgElement.src = row[imgField];
-            }
-        } else {
-            imgElement.src = "";
-        }
-        resetZoom();
+        // Fampisehoana ilay sary vaovao
+        loadImageForCurrentRow();
 
         let firstInputId = null;
 
@@ -417,27 +453,21 @@
             input.value = row[header] !== undefined ? row[header] : "";
             input.id = `input-${header}`;
             
-// Rehefa miditra eo amin'ny textbox (focus) - Atao afovoany ny soratra
-input.addEventListener('focus', function() {
-    lastActiveInputId = this.id;
-    const container = document.getElementById('champ-focus-container');
-    const focusText = document.getElementById('champ-focus-text');
-    
-    container.style.display = 'block';
-    focusText.innerText = `${header} : : ${this.value}`;
-});
+            // Rehefa miditra eo amin'ny textbox (focus) - Atao afovoany ny soratra
+            input.addEventListener('focus', function() {
+                lastActiveInputId = this.id;
+                const container = document.getElementById('champ-focus-container');
+                const focusText = document.getElementById('champ-focus-text');
+                
+                container.style.display = 'block';
+                focusText.innerText = `${header} : : ${this.value}`;
+            });
 
-// Havaozina mivantana rehefa manoratra ianao
-input.addEventListener('input', function() {
-    const focusText = document.getElementById('champ-focus-text');
-    focusText.innerText = `${header} : : ${this.value}`;
-});
-
-// Havaozina mivantana koa ny soratra eo ambony rehefa misy fanovana soratanao (input)
-input.addEventListener('input', function() {
-    const focusText = document.getElementById('champ-focus-text');
-    focusText.innerText = `${header} : ${this.value}`;
-});
+            // Havaozina mivantana rehefa manoratra ianao
+            input.addEventListener('input', function() {
+                const focusText = document.getElementById('champ-focus-text');
+                focusText.innerText = `${header} : : ${this.value}`;
+            });
 
             if (!firstInputId) firstInputId = input.id;
             
@@ -446,7 +476,7 @@ input.addEventListener('input', function() {
             formSection.appendChild(formGroup);
         });
 
-        // TONGALAFATRA: Mametraka ny cursor eo amin'ny textbox voalohany ambony indrindra rehefa mifindra Ligne
+        // Mametraka ny cursor eo amin'ny textbox voalohany ambony indrindra rehefa mifindra Ligne
         setTimeout(() => {
             if (firstInputId) {
                 const fInput = document.getElementById(firstInputId);
