@@ -365,9 +365,34 @@
         document.getElementById('prev-btn').disabled = currentIndex === 0;
         document.getElementById('next-btn').disabled = currentIndex === excelData.length - 1;
 
+     // 1. Karohina aloha ny columna "Chemin image" (A1 na B1 na izay lohateniny)
         const imgField = headers.find(h => h.toLowerCase() === "chemin image") || "chemin image";
-        if(row[imgField]) {
-            imgElement.src = row[imgField]; 
+        
+        // 2. Karohina izay columna misy soratra ".jpg" na ".png" any amin'ilay andalana (ligne) andehanana
+        let imageName = "";
+        for (let key in row) {
+            if (row[key] && (row[key].toString().toLowerCase().endsWith('.jpg') || row[key].toString().toLowerCase().endsWith('.png') || row[key].toString().toLowerCase().endsWith('.jpeg'))) {
+                imageName = row[key].toString().trim();
+                break; // Raha hita ilay anaran-tsary dia mijanona
+            }
+        }
+
+        // 3. Fanakambanana ny "Chemin image" sy ny "Anaran'ny sary"
+        if (row[imgField]) {
+            let baseChemin = row[imgField].toString().trim();
+            
+            // Raha toa ka tsy miafara amin'ny "/" ilay chemin dia ampiana "/"
+            if (baseChemin && !baseChemin.endsWith('/') && !baseChemin.endsWith('\\')) {
+                baseChemin += '/';
+            }
+
+            // Raha nahita anaran-tsary (.jpg) tamin'ilay ligne
+            if (imageName !== "") {
+                imgElement.src = baseChemin + imageName;
+            } else {
+                // Raha tsy nisy .jpg hita, dia ampiasaina fotsiny ilay chemin feno ao amin'ny b1
+                imgElement.src = row[imgField];
+            }
         } else {
             imgElement.src = "";
         }
